@@ -1,0 +1,3 @@
+(library
+ (name pluk_parser)
+ (public_name pluk-parser))

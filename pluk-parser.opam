@@ -1,0 +1,6 @@
+opam-version: "1.2"
+version: "0.1"
+maintainer: "ramil.fh@ya.ru"
+authors: ["Ramil Farkhshatov"]
+license: "GPLv3"
+build: ["jbuilder" "build" "--only" "pluk-parser" "--root" "." "-j" jobs "@install"]
