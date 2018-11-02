@@ -3,7 +3,7 @@ type 'a stream_result =
   | Stream_eof
 and 'a stream = unit -> 'a stream_result;;
 
-type ('a, 'b) parse_result = 
+type ('a, 'b) parse_result =
   | Parse_ok of 'a * 'b stream
   | Parse_error of string  * 'b stream;;
 
@@ -38,23 +38,23 @@ let stream next_proc =
       add Eof_cell;
       Stream_eof
 
-  and mk next_proc list () = 
+  and mk next_proc list () =
     match list with
     | Cell {next = Cell {item; _} as next; _} ->
         Stream_ok (item, mk next_proc next)
-    | Tail_cell {next = Cell {item; _} as next} -> 
+    | Tail_cell {next = Cell {item; _} as next} ->
         Stream_ok (item, mk next_proc next)
     | Eof_cell -> Stream_eof
     | _ -> read_next next_proc in
 
   mk next_proc !q;;
 
-let stream_of_list list = 
+let stream_of_list list =
   let list = ref list in
   stream (fun () ->
     match !list with
     | [] -> None
-    | x :: xs -> 
+    | x :: xs ->
         list := xs;
         Some x);;
 

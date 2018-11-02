@@ -6,7 +6,7 @@
 (**
 
 A simple parser.
- 
+
  *)
 
 type 'a stream_result =
