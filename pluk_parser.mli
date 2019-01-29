@@ -1,46 +1,25 @@
-(* Pluk-parser
-  Copyright 2018 Ramil Farkhshatov
-  All rights reserved. This file is distributed under the terms of the
-  GNU Lesser General Public License version 3 with OCaml linking exception *)
+module Stream : sig
+  type 'a t = 'a stream_result Lazy.t * int
+  and 'a stream_result = Item of 'a * 'a t | Eof
+  val of_seq : 'a Seq.t -> 'a t
+  val next : 'a t -> 'a stream_result
+  val position : 'a t -> int
+  val of_bytes : bytes -> char t
+  val of_string : string -> char t
+end
 
-(**
+type 'a stream = 'a Stream.t
+type ('a, 's) item = 'a * 's stream
+type 's error = string * 's stream
+type ('a, 's) parse_result = (('a, 's) item, 's error) result
+type ('a, 's) t = 's stream -> ('a, 's) parse_result
 
-A simple parser.
+val apply : 's stream -> ('a, 's) t -> ('a, 's) parse_result
 
- *)
+val next : ('a, 's) t -> ('a -> 's stream -> ('b, 's) parse_result)
+           -> 's stream -> ('b, 's) parse_result
 
-type 'a stream_result =
-  | Stream_ok of 'a * 'a stream
-  | Stream_eof
-(** Stream result type *)
-
-and 'a stream = unit -> 'a stream_result
-(** Stream type *)
-
-type ('a, 'b) parse_result =
-  | Parse_ok of 'a * 'b stream
-  | Parse_error of string * 'b stream
-(** Parse result type *)
-
-type ('a, 'b) t = 'b stream -> ('a, 'b) parse_result
-(** Parser function type *)
-
-val stream : (unit -> 'a option) -> 'a stream
-
-val stream_of_list : 'a list -> 'a stream
-
-val stream_of_bytes : bytes -> int -> char stream
-
-val stream_of_string : string -> int -> char stream
-
-val stream_of_channel : in_channel -> char stream
-
-val next :
-  ('a stream -> ('b, 'c) parse_result) ->
-  ('b -> 'c stream -> ('d, 'c) parse_result) ->
-  'a stream -> ('d, 'c) parse_result
-
-val error : string -> 'b stream -> ('a, 'b) parse_result
+val error : string -> 's stream -> ('a, 's) parse_result
 
 val any_item : 'a stream -> ('a, 'a) parse_result
 
