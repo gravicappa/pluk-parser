@@ -73,4 +73,6 @@ val void : ('a -> ('b, 'c) parse_result) -> 'a -> (unit, 'c) parse_result
 
 val const : 'a -> 'b stream -> ('a, 'b) parse_result
 
-val e : 'a stream -> (unit, 'a) parse_result
+val const_unit : 'a stream -> (unit, 'a) parse_result
+
+val end_of_stream : 'a stream -> (unit, 'a) parse_result

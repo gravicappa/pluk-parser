@@ -54,17 +54,21 @@ let any_item stream =
   | Stream.Item (x, s1) -> Ok (x, s1)
   | Stream.Eof -> Error ("eof", stream)
 
-let some_of parsers stream =
-  let rec loop = function
-    | [] -> Error ("parse_or", stream)
-    | parser :: [] -> (parser stream)
-    | parser :: parsers ->
-        begin
+let some_of parsers =
+  match parsers with
+  | [] -> failwith "Empty parsers list"
+  | p :: ps ->
+      fun stream ->
+        let rec parse parser parsers =
           match (parser stream) with
-          | Ok (_, _) as result -> result
-          | _ -> loop parsers
-        end in
-  loop parsers
+          | Ok _ as result -> result
+          | err -> loop err parsers
+
+        and loop err = function
+          | [] -> err
+          | p :: ps -> parse p ps in
+
+        parse p ps
 
 let zero_or_many init parser stream =
   let rec loop x s =
@@ -132,7 +136,8 @@ let match_string str test stream =
       match Stream.next s with
       | Stream.Item (x, s1) when (test x (String.get str i)) ->
           Ok (i + 1, s1)
-      | _ -> Error ("match_string", s)
+      | Stream.Item (_, s1) -> Error ("match_string", s1)
+      | _ -> Error ("match_string premature end", s)
     else
       Error ("match_string", s) in
   match zero_or_many 0 proc stream with
@@ -179,4 +184,9 @@ let void parser stream = convert ignore parser stream
 
 let const x stream = Ok (x, stream)
 
-let e stream = const () stream
+let const_unit stream = const () stream
+
+let end_of_stream stream =
+  match Stream.next stream with
+  | Stream.Item (_, s) -> Error ("end_of_stream", s)
+  | Stream.Eof -> Ok ((), stream)
