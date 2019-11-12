@@ -134,8 +134,7 @@ let match_string str test stream =
   let proc i s =
     if i < n then
       match Stream.next s with
-      | Stream.Item (x, s1) when (test x (String.get str i)) ->
-          Ok (i + 1, s1)
+      | Stream.Item (x, s1) when (test x (String.get str i)) -> Ok (i + 1, s1)
       | Stream.Item (_, s1) -> Error ("match_string", s1)
       | _ -> Error ("match_string premature end", s)
     else
