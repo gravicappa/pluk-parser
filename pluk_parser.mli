@@ -1,5 +1,5 @@
 module Stream : sig
-  type 'a t = 'a stream_result Lazy.t * int
+  type 'a t
   and 'a stream_result = Item of 'a * 'a t | Eof
   val of_seq : 'a Seq.t -> 'a t
   val next : 'a t -> 'a stream_result
