@@ -33,6 +33,7 @@ end
 type msg = ..
 
 type msg +=
+  | Msg of string
   | Eof
   | Invalid_digit_character
   | Invalid_digit
@@ -82,7 +83,10 @@ let next parser proc stream =
   | Ok (a, stream') -> proc a stream'
   | Error e -> Error e
 
+let msg string = Msg string
+
 let string_of_msg = function
+  | Msg s -> Some s
   | Eof -> Some "Eof"
   | Invalid_digit_character -> Some "Invalid_digit_character"
   | Invalid_digit -> Some "Invalid_digit"
@@ -97,13 +101,13 @@ let string_of_msg = function
 
 let any_item stream =
   match Stream.next stream with
-  | Stream.Value (x, s1) -> Ok (x, s1)
+  | Stream.Value (a, stream') -> Ok (a, stream')
   | Stream.End -> Error (Eof, stream)
 
 let or_ parsers =
   match parsers with
   | [] -> invalid_arg "Empty parsers list"
-  | p :: ps ->
+  | parser :: parsers ->
       fun stream ->
         let rec parse parser parsers =
           match (parser stream) with
@@ -112,26 +116,26 @@ let or_ parsers =
 
         and loop err = function
           | [] -> err
-          | p :: ps -> parse p ps in
+          | parser :: parsers -> parse parser parsers in
 
-        parse p ps
+        parse parser parsers
 
-let zero_or_many init parser stream =
-  let rec loop a stream =
-    match parser a stream with
-    | Ok (a, stream') -> loop a stream'
-    | Error _ -> Ok (a, stream) in
-  loop init stream
+let fold value parser stream =
+  let rec loop value stream =
+    match parser value stream with
+    | Ok (value, stream') -> loop value stream'
+    | Error _ -> Ok (value, stream) in
+  loop value stream
 
-let one_or_many init parser stream =
-  bind (parser init stream) @@ fun (a, stream) ->
-    zero_or_many a parser stream
+let fold_nonempty value parser stream =
+  bind (parser value stream) @@ fun (value, stream) ->
+    fold value parser stream
 
 let digit_of_char =
   let range = [(0, Char.code '0', Char.code '9');
                (10, Char.code 'a', Char.code 'z');
                (10, Char.code 'A', Char.code 'Z')] in
-  fun a radix ->
+  fun ?(radix = 10) char ->
     let rec loop a range =
       match range with
       | (base, range_a, range_b) :: range ->
@@ -144,32 +148,32 @@ let digit_of_char =
           end else
             loop a range
       | [] -> None in
-    loop a range
+    loop (Char.code char) range
 
 let digit radix stream =
   match Stream.next stream with
   | Stream.Value (a, stream') ->
-      begin match digit_of_char (Char.code a) radix with
+      begin match digit_of_char ~radix a with
       | Some digit -> Ok (digit, stream')
       | None -> Error (Invalid_digit_character, stream')
       end
   | _ -> Error (Invalid_digit, stream)
 
 let number radix =
-  one_or_many 0 (fun a ->
-    next (digit radix) (fun digit stream ->
-      Ok ((a * radix) + digit, stream)))
+  fold_nonempty 0 @@ fun a ->
+    next (digit radix) @@ fun digit stream ->
+      Ok ((a * radix) + digit, stream)
 
-let number_n radix len stream =
+let fixed_length_number ?(radix = 10) length stream =
   let proc (i, x) stream =
-    if i < len then begin
+    if i < length then begin
       apply stream (next (digit radix) (fun digit stream' ->
         Ok ((i + 1, ((x * radix) + digit)), stream')))
     end else
       Error (Invalid_number_character, stream) in
 
-  apply stream (next (one_or_many (0, 0) proc) (fun (_, a) stream' ->
-    Ok (a, stream')))
+  apply stream @@ next (fold_nonempty (0, 0) proc) @@ fun (_, a) stream' ->
+    Ok (a, stream')
 
 let exact_item item stream =
   match Stream.next stream with
@@ -187,20 +191,20 @@ let match_string str test stream =
       | _ -> Error (Inexpected_end_of_stream, stream)
     else
       Error (String_mismatch, stream) in
-  match zero_or_many 0 proc stream with
+  match fold 0 proc stream with
   | Ok (i, stream') when (i = n) -> Ok (str, stream')
   | Ok (_, stream') -> Error (String_mismatch, stream')
   | Error err -> Error err
 
 let exact_string str = match_string str (=)
 
-let satisfy n_or_many test stream =
+let satisfy fold_proc test stream =
   let proc a stream =
     match Stream.next stream with
     | Stream.Value (b, stream') when test b -> Ok (a, stream')
     | _ -> Error (Satisfy_mismatch, stream) in
 
-  match n_or_many () proc stream with
+  match fold_proc () proc stream with
   | Ok (a, stream') -> Ok (a, stream')
   | Error err -> Error err
 

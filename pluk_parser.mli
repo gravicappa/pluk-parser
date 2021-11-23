@@ -7,7 +7,7 @@
 *)
 module Stream : sig
   type 'a t
-  (** The type for stream *)
+  (** The type for stream. *)
 
   and 'a stream_result =
     | Value of 'a * 'a t
@@ -16,10 +16,10 @@ module Stream : sig
 
   val next : 'a t -> 'a stream_result
   (** [next stream] returns the value from [stream] and instance of
-      stream positioned at next value *)
+      stream positioned at next value. *)
 
   val position : 'a t -> int
-  (** [position stream] returns the position of [stream] *)
+  (** [position stream] returns the position of [stream]. *)
 
   val of_seq : 'a Seq.t -> 'a t
   (** [of_seq seq] creates a stream using [seq] as a source. *)
@@ -39,6 +39,7 @@ type msg = ..
 (** The type for error messages. *)
 
 type msg +=
+  | Msg of string
   | Eof
   | Invalid_digit_character
   | Invalid_digit
@@ -54,33 +55,48 @@ type msg +=
 type 's error = (msg, 's) elt
 
 type ('a, 's) parse_result = (('a, 's) elt, 's error) result
-(** Type for return value of each parser *)
+(** Type for return value of each parser. *)
 
 type ('a, 's) t = 's stream -> ('a, 's) parse_result
-(** Type of parser *)
+(** Type of parser. *)
 
 val apply : 's stream -> ('a, 's) t -> ('a, 's) parse_result
-(** [apply stream parser] returns the result of applying [parser] on [stream] *)
+(** [apply stream parser] returns the result of applying [parser] on [stream]. *)
 
 val ok : 'a -> 'b stream -> ('a, 'b) parse_result
+(** [ok a stream] is [Ok (a, stream)]. *)
 
 val error : msg -> 's stream -> ('a, 's) parse_result
+(** [error msg stream] is [Error (msg, stream)]. *)
+
+val msg: string -> msg
+(** [msg str] is [Msg str]. *)
 
 val string_of_msg: msg -> string option
+(** [string_of_msg msg] returns a string representation of [msg] known to the
+    library. *)
 
 val map: ('a -> 'b) -> ('a, 's) parse_result -> ('b, 's) parse_result
+(** [map proc r] is [Ok (proc v, stream)] if [r] is [Ok (v, stream)] and
+    [r] when [r] is [Error _]. *)
 
 val map_error: (msg -> msg) -> ('a, 's) parse_result -> ('a, 's) parse_result
+(** [map_error proc r] is [Error (proc msg, stream)] if [r] is
+    [Error (msg, stream)] and [r] when [r] is [Ok _]. *)
+
+val map_value :
+  ('a -> 'b) -> ('c -> ('a, 's) parse_result) -> 'c -> ('b, 's) parse_result
+(** [map proc r] is [Ok (proc v, stream)] if [r] is [Ok (v, stream)] and
+    [r] when [r] is [Error _]. *)
 
 val bind:
   ('a, 's) parse_result ->
   (('a * 's stream) -> ('b, 's) parse_result) ->
   ('b, 's) parse_result
-
-val map_value :
-  ('a -> 'b) -> ('c -> ('a, 'd) parse_result) -> 'c -> ('b, 'd) parse_result
+(** [bind r proc] is [proc a] if [r] is [Ok a] and [r] if [r] is [Error _]. *)
 
 val ok_unit : 'a stream -> (unit, 'a) parse_result
+(** A parser that returns [Ok ((), stream)]. *)
 
 val next :
   ('a, 's) t ->
@@ -99,28 +115,36 @@ val next :
  *)
 
 val any_item : 'a stream -> ('a, 'a) parse_result
+(** A parser that accept any item from stream. *)
 
 val or_ :
   ('a stream -> ('b, 'a) parse_result) list ->
   'a stream -> ('b, 'a) parse_result
+(** [or_ list] is parser that applies a [list] of parsers to stream
+    'simultaneously' and returns the value of first one that succeeds or
+    error of the last one. *)
 
-val zero_or_many :
+val fold :
   'a ->
   ('a -> 'b stream -> ('a, 'b) parse_result) ->
-  'b stream -> ('a, 'b) parse_result
+  'b stream ->
+   ('a, 'b) parse_result
+ (** [fold initial proc] *)
 
-val one_or_many :
+val fold_nonempty :
   'a ->
   ('a -> 'b stream -> ('a, 'b) parse_result) ->
-  'b stream -> ('a, 'b) parse_result
+  'b stream ->
+  ('a, 'b) parse_result
 
-val digit_of_char : int -> int -> int option
+val digit_of_char : ?radix:int -> char -> int option
 
 val digit : int -> char stream -> (int, char) parse_result
 
 val number : int -> char stream -> (int, char) parse_result
 
-val number_n : int -> int -> char stream -> (int, char) parse_result
+val fixed_length_number :
+  ?radix:int -> int -> char stream -> (int, char) parse_result
 
 val exact_item : 'a -> 'a stream -> ('a, 'a) parse_result
 
