@@ -84,8 +84,7 @@ val map_error: (msg -> msg) -> ('a, 's) parse_result -> ('a, 's) parse_result
 (** [map_error proc r] is [Error (proc msg, stream)] if [r] is
     [Error (msg, stream)] and [r] when [r] is [Ok _]. *)
 
-val map_value :
-  ('a -> 'b) -> ('c -> ('a, 's) parse_result) -> 'c -> ('b, 's) parse_result
+val map_value : ('a -> 'b) -> ('a, 's) t -> ('b, 's) t
 (** [map proc r] is [Ok (proc v, stream)] if [r] is [Ok (v, stream)] and
     [r] when [r] is [Error _]. *)
 
